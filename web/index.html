@@ -21,9 +21,13 @@
     <div class="controls">
       <button id="naiveBtn" class="run-btn naive">Run Naive (Anti-Pattern)</button>
       <button id="resilientBtn" class="run-btn resilient">Run Resilient (Recommended)</button>
+      <button id="benchmarkBtn" class="run-btn benchmark">Run Side-by-Side Benchmark</button>
       <button id="resetBtn" class="ghost-btn">Reset</button>
+    </div>
+    <div class="controls">
       <label>tasks <input type="number" id="taskCountInput" min="3" max="15" value="6" /></label>
       <label>failure rate <input type="number" id="failInput" min="0" max="0.9" step="0.05" value="0.2" /></label>
+      <label>fatal share <input type="number" id="fatalInput" min="0" max="1" step="0.05" value="0.2" /></label>
     </div>
 
     <div class="mode-columns">
@@ -36,8 +40,17 @@
             <div class="card-value" id="naive-successRate">&mdash;</div>
           </div>
           <div class="card">
+            <div class="card-label">Errors encountered</div>
+            <div class="card-value" id="naive-errors">&mdash;</div>
+          </div>
+          <div class="card">
             <div class="card-label">Coordinator interventions</div>
             <div class="card-value" id="naive-interventions">&mdash;</div>
+            <div class="card-sub" id="naive-interventionsDetail"></div>
+          </div>
+          <div class="card">
+            <div class="card-label">Avg time / task</div>
+            <div class="card-value" id="naive-elapsed">&mdash;</div>
           </div>
           <div class="card">
             <div class="card-label">Combined input tokens</div>
@@ -48,6 +61,7 @@
             <div class="card-value" id="naive-synthesisTokens">&mdash;</div>
           </div>
         </div>
+        <p class="mode-note">No compression step exists here: whatever exceeds the 6000-token budget is silently truncated, not condensed &mdash; and interventions stay at 0 because nothing in this path is built to recover.</p>
       </section>
 
       <section class="mode-panel resilient">
@@ -59,8 +73,17 @@
             <div class="card-value" id="resilient-successRate">&mdash;</div>
           </div>
           <div class="card">
+            <div class="card-label">Errors encountered</div>
+            <div class="card-value" id="resilient-errors">&mdash;</div>
+          </div>
+          <div class="card">
             <div class="card-label">Coordinator interventions</div>
             <div class="card-value" id="resilient-interventions">&mdash;</div>
+            <div class="card-sub" id="resilient-interventionsDetail"></div>
+          </div>
+          <div class="card">
+            <div class="card-label">Avg time / task</div>
+            <div class="card-value" id="resilient-elapsed">&mdash;</div>
           </div>
           <div class="card">
             <div class="card-label">Combined input tokens</div>
@@ -71,6 +94,7 @@
             <div class="card-value" id="resilient-synthesisTokens">&mdash;</div>
           </div>
         </div>
+        <p class="mode-note">When combined tokens exceed budget, the simulated summarization step compresses them (&asymp;25&ndash;38% kept) before synthesis &mdash; that compression is why this number runs lower than Naive's, instead of being truncated away.</p>
       </section>
     </div>
 

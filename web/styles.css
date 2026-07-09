@@ -155,6 +155,10 @@ footer code {
   background: var(--resilient);
 }
 
+.run-btn.benchmark {
+  background: linear-gradient(90deg, var(--naive) 50%, var(--resilient) 50%);
+}
+
 .run-btn:disabled,
 .ghost-btn:disabled {
   opacity: 0.5;
@@ -234,8 +238,14 @@ footer code {
 
 .cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .cards {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .card {
@@ -257,6 +267,21 @@ footer code {
   font-size: 1.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.card-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  min-height: 1em;
+}
+
+.mode-note {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 12px 0 0;
+  font-style: italic;
 }
 
 .panel {
@@ -297,6 +322,10 @@ footer code {
 #console .line.mode-resilient {
   border-left-color: var(--resilient);
   background: var(--resilient-wash);
+}
+
+#console .line.mode-neutral {
+  border-left-color: var(--baseline);
 }
 
 #console .line.boundary {

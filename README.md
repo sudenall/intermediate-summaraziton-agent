@@ -87,16 +87,44 @@ It's also live on GitHub Pages — the root `index.html` just redirects into
 `web/index.html`, which is the actual simulator, so the same static files
 serve/dev'd locally work there unchanged.
 
-The page has two buttons — "Run Naive (Anti-Pattern)" and "Run Resilient
-(Recommended)" — each driving a batch of simulated tasks through
-`src/orchestrator.js`'s `runNaive()` / `runResilient()` respectively. The log
-panel streams the orchestrator's own log events as each task runs (task
-markers, retries, compression, escalation, success/failure), and the metric
-cards for that mode update after every task. "Reset" clears the log and both
-card sets and creates fresh orchestrator instances (so circuit breaker state
-doesn't carry over between sessions). Naive and resilient runs can be fired
-independently and their log history stays interleaved (color-coded red vs.
-green) so a viewer can compare both paths in the same panel.
+The page has three run modes, all driving the same `src/orchestrator.js`:
+
+- **Run Naive (Anti-Pattern)** — batches calls to `orchestrator.runNaive()`.
+- **Run Resilient (Recommended)** — batches calls to `orchestrator.runResilient()`.
+- **Run Side-by-Side Benchmark** — runs both batches concurrently (two
+  independent `Orchestrator` instances, so neither's circuit-breaker state
+  leaks into the other) so both columns update live at the same time —
+  meant for recording, since a viewer sees both outcomes diverge in real time
+  instead of watching one path then the other.
+
+The log panel streams the orchestrator's own log events as each task runs
+(task markers, retries, compression, escalation, success/failure), and each
+mode's six metric cards (success rate, errors encountered, coordinator
+interventions with a retries/escalations/circuit-blocks breakdown, average
+time per task, combined input tokens, tokens sent to synthesis) update after
+every task. "Reset" clears the log and both card sets and creates fresh
+orchestrator instances. Naive and resilient log history stays interleaved
+and color-coded (red vs. green) so a viewer can compare both paths in the
+same panel without switching views.
+
+A couple of things worth calling out explicitly, since they come up when
+reading the numbers:
+
+- **Naive's "Coordinator interventions" is 0 by design, not a bug.** The
+  naive path has no retry loop, no circuit breaker, and no escalation
+  handling to intervene with — that's the entire point of the anti-pattern.
+  Its "Errors encountered" card is usually well above 0 in the same run,
+  which is the more honest signal that things *are* failing, the naive path
+  is just structurally incapable of doing anything about it.
+- **"Combined input tokens" and "Tokens sent to synthesis" diverge because
+  of compression, and only because of compression.** Both modes draw from
+  the same random token distributions for `search`/`retrieval`, so their
+  combined-input totals track closely over a batch. What splits them apart
+  is what happens next: naive has no compression step and truncates
+  anything over the 6000-token budget outright, while resilient routes the
+  overflow through the simulated `summarization` step first, which keeps
+  roughly 25–38% of the tokens instead of discarding everything past the
+  cutoff. The two mode panels each say this inline under their cards.
 
 ## Layout
 

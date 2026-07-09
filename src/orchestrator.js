@@ -110,19 +110,28 @@ export class Orchestrator {
 
   async runNaive() {
     const metrics = { errors: 0, retries: 0, circuitBlocks: 0, escalations: 0 };
+    const startedAt = Date.now();
     this.log("info", "=== naive run start ===");
+
+    // Tracked outside the try so a later failure (e.g. synthesis) doesn't
+    // erase tokens that were genuinely already produced by search/retrieval
+    // -- the pipeline still spent that work even though the task failed.
+    let combinedTokens = 0;
+    let tokensAtSynthesis = 0;
+    let overBudget = false;
+
     try {
       const [search, retrieval] = await Promise.all([
         this.callNaive("search", {}, metrics),
         this.callNaive("retrieval", {}, metrics),
       ]);
 
-      const combinedTokens = search.tokens + retrieval.tokens;
-      const overBudget = combinedTokens > this.contextBudgetTokens;
+      combinedTokens = search.tokens + retrieval.tokens;
+      overBudget = combinedTokens > this.contextBudgetTokens;
       // Naive path has no compression step: it forwards whatever it has and
       // silently truncates at the budget, losing context instead of
       // condensing it.
-      const tokensAtSynthesis = overBudget ? this.contextBudgetTokens : combinedTokens;
+      tokensAtSynthesis = overBudget ? this.contextBudgetTokens : combinedTokens;
       if (overBudget) {
         this.log("warn", `context overflow: ${combinedTokens} tok > budget ${this.contextBudgetTokens}, truncating (no compression)`);
       }
@@ -137,6 +146,7 @@ export class Orchestrator {
         tokensAtSynthesis,
         contextTruncated: overBudget,
         compressionApplied: false,
+        elapsedMs: Date.now() - startedAt,
         ...metrics,
       };
     } catch (err) {
@@ -144,10 +154,11 @@ export class Orchestrator {
       return {
         mode: "naive",
         success: false,
-        combinedTokens: 0,
-        tokensAtSynthesis: 0,
-        contextTruncated: false,
+        combinedTokens,
+        tokensAtSynthesis,
+        contextTruncated: overBudget,
         compressionApplied: false,
+        elapsedMs: Date.now() - startedAt,
         ...metrics,
       };
     }
@@ -155,6 +166,7 @@ export class Orchestrator {
 
   async runResilient() {
     const metrics = { errors: 0, retries: 0, circuitBlocks: 0, escalations: 0 };
+    const startedAt = Date.now();
     this.log("info", "=== resilient run start ===");
 
     // search and retrieval are independent sources; losing one degrades
@@ -175,7 +187,7 @@ export class Orchestrator {
     const available = sources.filter((s) => s.ok);
     if (available.length === 0) {
       this.log("error", "=== resilient run: FAILED (no sources available) ===");
-      return { mode: "resilient", success: false, combinedTokens: 0, tokensAtSynthesis: 0, compressionApplied: false, degradedSources: 2, ...metrics };
+      return { mode: "resilient", success: false, combinedTokens: 0, tokensAtSynthesis: 0, compressionApplied: false, degradedSources: 2, elapsedMs: Date.now() - startedAt, ...metrics };
     }
 
     const combinedTokens = available.reduce((sum, s) => sum + s.tokens, 0);
@@ -211,6 +223,7 @@ export class Orchestrator {
         tokensAtSynthesis,
         compressionApplied,
         degradedSources: 2 - available.length,
+        elapsedMs: Date.now() - startedAt,
         ...metrics,
       };
     } catch (err) {
@@ -222,6 +235,7 @@ export class Orchestrator {
         tokensAtSynthesis,
         compressionApplied,
         degradedSources: 2 - available.length,
+        elapsedMs: Date.now() - startedAt,
         ...metrics,
       };
     }
