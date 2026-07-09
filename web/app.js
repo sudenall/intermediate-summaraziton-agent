@@ -83,7 +83,9 @@ function renderCards(mode) {
   document.getElementById(`${mode}-errors`).textContent = t.tasks ? String(t.errors) : "—";
   document.getElementById(`${mode}-interventions`).textContent = t.tasks ? String(interventions) : "—";
   document.getElementById(`${mode}-interventionsDetail`).textContent = t.tasks
-    ? `${t.retries} retries, ${t.escalations} escalations, ${t.circuitBlocks} circuit blocks`
+    ? mode === "naive"
+      ? `always 0 — this path has no recovery logic to intervene; see "Errors encountered" for what went wrong`
+      : `${t.retries} retries, ${t.escalations} escalations, ${t.circuitBlocks} circuit blocks`
     : "";
   document.getElementById(`${mode}-elapsed`).textContent = avgElapsed === null ? "—" : `${avgElapsed}ms`;
   document.getElementById(`${mode}-inputTokens`).textContent = t.tasks ? String(t.inputTokens) : "—";
