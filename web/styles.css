@@ -1,78 +1,31 @@
 :root {
-  --surface-1: #fcfcfb;
-  --page: #f9f9f7;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #898781;
-  --gridline: #e1e0d9;
-  --baseline: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
+  color-scheme: dark;
 
-  /* naive = anti-pattern -> critical (status red), resilient = recommended -> good (status green) */
-  --naive: #d03b3b;
-  --naive-wash: rgba(208, 59, 59, 0.08);
-  --resilient: #0ca30c;
-  --resilient-wash: rgba(12, 163, 12, 0.08);
+  /* Dark-first palette: off-black/off-white instead of pure black/white to
+     keep contrast comfortable, and muted rust/teal instead of saturated
+     red/green so the naive-vs-resilient split reads clearly without glare. */
+  --page: #0e1013;
+  --surface-1: #16191f;
+  --text-primary: #e8e9ec;
+  --text-secondary: #a2a7b3;
+  --text-muted: #6c7280;
+  --gridline: #262a33;
+  --baseline: #343a46;
+  --border: rgba(255, 255, 255, 0.08);
 
-  --log-info: #2a78d6;
-  --log-warn: #c98500;
-  --log-error: #d03b3b;
-}
+  /* naive = anti-pattern -> warm rust, resilient = recommended -> cool teal.
+     -btn variants are darkened so white button text keeps ~4.5:1 contrast;
+     the base tone stays more vivid for dots/borders/log tinting. */
+  --naive: #d97a42;
+  --naive-btn: #b85a2a;
+  --naive-wash: rgba(217, 122, 66, 0.12);
+  --resilient: #2bc4a8;
+  --resilient-btn: #128571;
+  --resilient-wash: rgba(31, 174, 148, 0.14);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface-1: #1a1a19;
-    --page: #0d0d0d;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted: #898781;
-    --gridline: #2c2c2a;
-    --baseline: #383835;
-    --border: rgba(255, 255, 255, 0.1);
-
-    --naive: #e66767;
-    --naive-wash: rgba(230, 103, 103, 0.1);
-    --resilient: #0ca30c;
-    --resilient-wash: rgba(12, 163, 12, 0.12);
-
-    --log-info: #3987e5;
-    --log-warn: #e0a531;
-    --log-error: #e66767;
-  }
-}
-
-:root[data-theme="dark"] {
-  --surface-1: #1a1a19;
-  --page: #0d0d0d;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted: #898781;
-  --gridline: #2c2c2a;
-  --baseline: #383835;
-  --naive: #e66767;
-  --naive-wash: rgba(230, 103, 103, 0.1);
-  --resilient: #0ca30c;
-  --resilient-wash: rgba(12, 163, 12, 0.12);
-  --log-info: #3987e5;
-  --log-warn: #e0a531;
-  --log-error: #e66767;
-}
-
-:root[data-theme="light"] {
-  --surface-1: #fcfcfb;
-  --page: #f9f9f7;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted: #898781;
-  --gridline: #e1e0d9;
-  --baseline: #c3c2b7;
-  --naive: #d03b3b;
-  --naive-wash: rgba(208, 59, 59, 0.08);
-  --resilient: #0ca30c;
-  --resilient-wash: rgba(12, 163, 12, 0.08);
-  --log-info: #2a78d6;
-  --log-warn: #c98500;
-  --log-error: #d03b3b;
+  --log-info: #6ea8e0;
+  --log-warn: #dba53c;
+  --log-error: #dd6b63;
 }
 
 * {
@@ -148,15 +101,15 @@ footer code {
 }
 
 .run-btn.naive {
-  background: var(--naive);
+  background: var(--naive-btn);
 }
 
 .run-btn.resilient {
-  background: var(--resilient);
+  background: var(--resilient-btn);
 }
 
 .run-btn.benchmark {
-  background: linear-gradient(90deg, var(--naive) 50%, var(--resilient) 50%);
+  background: linear-gradient(90deg, var(--naive-btn) 50%, var(--resilient-btn) 50%);
 }
 
 .run-btn:disabled,
