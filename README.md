@@ -83,6 +83,10 @@ node web/serve.js          # serves on http://localhost:5173
 The web demo needs to be served over HTTP (not opened as a `file://` path)
 because it loads the simulation core as native ES modules.
 
+It's also live on GitHub Pages — the root `index.html` just redirects into
+`web/index.html`, which is the actual simulator, so the same static files
+serve/dev'd locally work there unchanged.
+
 The page has two buttons — "Run Naive (Anti-Pattern)" and "Run Resilient
 (Recommended)" — each driving a batch of simulated tasks through
 `src/orchestrator.js`'s `runNaive()` / `runResilient()` respectively. The log
