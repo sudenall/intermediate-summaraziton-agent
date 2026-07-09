@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Resilient Context Orchestrator - simulated demo</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Resilient Context Orchestrator</h1>
+      <p>
+        A simulated multi-agent pipeline (search + retrieval &rarr; summarization &rarr; synthesis).
+        No live model calls are made anywhere in this demo &mdash; every token count, latency and
+        failure below is produced by local simulation logic. Run the same failure conditions
+        through a <strong>naive</strong> pipeline (no compression, no retries, no circuit breaker)
+        and a <strong>resilient</strong> one (context compression + typed-error retries + per-agent
+        circuit breakers) and compare the outcomes.
+      </p>
+    </header>
+
+    <div class="controls">
+      <button id="runBtn">Run comparison</button>
+      <label>runs per mode <input type="number" id="runsInput" min="3" max="40" value="12" /></label>
+      <label>failure rate <input type="number" id="failInput" min="0" max="0.9" step="0.05" value="0.18" /></label>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Live run log</h2>
+        <div id="console"><div class="placeholder">Press "Run comparison" to start the simulation.</div></div>
+      </section>
+
+      <section class="panel">
+        <h2>Naive vs. resilient</h2>
+        <div class="results-scroll">
+          <div class="legend">
+            <span><span class="swatch" style="background:var(--series-naive)"></span>Naive</span>
+            <span><span class="swatch" style="background:var(--series-resilient)"></span>Resilient</span>
+          </div>
+          <div id="results"><div class="placeholder">No run yet.</div></div>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      Everything on this page runs client-side. Source: <code>src/</code> for the simulation core, <code>web/</code> for this UI.
+    </footer>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
