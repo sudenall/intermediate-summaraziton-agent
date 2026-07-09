@@ -1,0 +1,16 @@
+{
+  "name": "resilient-context-orchestrator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A simulated multi-agent orchestration demo comparing a naive pipeline against a resilient one built with context compression, typed errors, and per-agent circuit breakers.",
+  "type": "module",
+  "main": "src/cli.js",
+  "scripts": {
+    "start": "node src/cli.js",
+    "web": "node web/serve.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
