@@ -76,12 +76,23 @@ No install step — there are zero runtime dependencies.
 node src/cli.js            # defaults to 12 runs per mode
 node src/cli.js 25         # or pass a run count
 
-# Web demo: interactive version with a Run button and live console output
+# Web demo: live simulator with two run buttons and a streaming log
 node web/serve.js          # serves on http://localhost:5173
 ```
 
 The web demo needs to be served over HTTP (not opened as a `file://` path)
 because it loads the simulation core as native ES modules.
+
+The page has two buttons — "Run Naive (Anti-Pattern)" and "Run Resilient
+(Recommended)" — each driving a batch of simulated tasks through
+`src/orchestrator.js`'s `runNaive()` / `runResilient()` respectively. The log
+panel streams the orchestrator's own log events as each task runs (task
+markers, retries, compression, escalation, success/failure), and the metric
+cards for that mode update after every task. "Reset" clears the log and both
+card sets and creates fresh orchestrator instances (so circuit breaker state
+doesn't carry over between sessions). Naive and resilient runs can be fired
+independently and their log history stays interleaved (color-coded red vs.
+green) so a viewer can compare both paths in the same panel.
 
 ## Layout
 

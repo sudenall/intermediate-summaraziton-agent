@@ -1,26 +1,38 @@
-// Wires the simulation core (src/) to the page. This file only handles DOM
-// rendering and streaming; all agent/orchestrator/compression logic lives in
-// ../src and is exactly what the CLI (src/cli.js) also runs.
+// Wires the simulation core (src/orchestrator.js) to the page. This file
+// only handles DOM rendering, batching, and pacing; every resilience
+// mechanism it shows off -- compression, retries, escalation, circuit
+// breakers -- runs inside the imported Orchestrator, not here.
 
-import { runComparison } from "../src/compare.js";
+import { Orchestrator } from "../src/orchestrator.js";
 
 const consoleEl = document.getElementById("console");
-const resultsEl = document.getElementById("results");
-const runBtn = document.getElementById("runBtn");
-const runsInput = document.getElementById("runsInput");
+const naiveBtn = document.getElementById("naiveBtn");
+const resilientBtn = document.getElementById("resilientBtn");
+const resetBtn = document.getElementById("resetBtn");
+const taskCountInput = document.getElementById("taskCountInput");
 const failInput = document.getElementById("failInput");
 
-function appendLog(entry) {
+const PACE_MS = 220; // artificial gap between tasks so the log reads as a live process
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function clearEl(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function appendLog(entry, mode, boundary = false) {
   const line = document.createElement("div");
-  line.className = "line";
+  line.className = `line mode-${mode}${boundary ? " boundary" : ""}`;
 
   const ts = document.createElement("span");
   ts.className = "ts";
-  ts.textContent = new Date(entry.ts).toLocaleTimeString() + " ";
+  ts.textContent = new Date(entry.ts || Date.now()).toLocaleTimeString() + " ";
 
   const lvl = document.createElement("span");
-  lvl.className = `lvl-${entry.level}`;
-  lvl.textContent = entry.level.toUpperCase().padEnd(6, " ");
+  lvl.className = `lvl-${entry.level || "info"}`;
+  lvl.textContent = (entry.level || "info").toUpperCase().padEnd(6, " ");
 
   const agent = document.createElement("span");
   agent.className = "agent";
@@ -34,150 +46,100 @@ function appendLog(entry) {
   consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
-function clearEl(el) {
-  while (el.firstChild) el.removeChild(el.firstChild);
+function freshTotals() {
+  return { tasks: 0, successes: 0, retries: 0, circuitBlocks: 0, escalations: 0, inputTokens: 0, synthesisTokens: 0 };
 }
 
-function barRow(container, label, naiveVal, resilientVal, max, formatFn) {
-  const block = document.createElement("div");
-  block.className = "metric-block";
+const state = {
+  naiveOrchestrator: null,
+  resilientOrchestrator: null,
+  totals: { naive: freshTotals(), resilient: freshTotals() },
+};
 
-  const heading = document.createElement("div");
-  heading.className = "metric-label";
-  heading.textContent = label;
-  block.appendChild(heading);
-
-  for (const [name, cls, val] of [["Naive", "naive", naiveVal], ["Resilient", "resilient", resilientVal]]) {
-    const row = document.createElement("div");
-    row.className = "bar-row";
-
-    const nameEl = document.createElement("div");
-    nameEl.className = "name";
-    nameEl.textContent = name;
-
-    const track = document.createElement("div");
-    track.className = "bar-track";
-    const fill = document.createElement("div");
-    fill.className = `bar-fill ${cls}`;
-    const pct = max > 0 ? Math.max((val / max) * 100, val > 0 ? 2 : 0) : 0;
-    fill.style.width = pct + "%";
-    track.appendChild(fill);
-
-    const valueEl = document.createElement("div");
-    valueEl.className = "value";
-    valueEl.textContent = formatFn(val);
-
-    row.append(nameEl, track, valueEl);
-    block.appendChild(row);
-  }
-
-  container.appendChild(block);
+function makeOrchestrators() {
+  const failureRate = Math.min(Math.max(Number(failInput.value) || 0.2, 0), 0.9);
+  state.naiveOrchestrator = new Orchestrator({
+    failureRate,
+    onLog: (entry) => appendLog(entry, "naive"),
+  });
+  state.resilientOrchestrator = new Orchestrator({
+    failureRate,
+    onLog: (entry) => appendLog(entry, "resilient"),
+  });
 }
 
-function renderResults(comparison) {
-  const { naive, resilient } = comparison;
-  clearEl(resultsEl);
+function renderCards(mode) {
+  const t = state.totals[mode];
+  const successRate = t.tasks ? Math.round((t.successes / t.tasks) * 100) : null;
+  const interventions = t.retries + t.circuitBlocks + t.escalations;
 
-  barRow(resultsEl, "Success rate", naive.successRate * 100, resilient.successRate * 100, 100, (v) => v.toFixed(0) + "%");
-  barRow(
-    resultsEl,
-    "Avg tokens delivered to synthesis",
-    naive.avgTokensAtSynthesis,
-    resilient.avgTokensAtSynthesis,
-    Math.max(naive.avgTokensAtSynthesis, resilient.avgTokensAtSynthesis, 1),
-    (v) => String(Math.round(v))
-  );
-  barRow(
-    resultsEl,
-    "Total errors encountered",
-    naive.totalErrors,
-    resilient.totalErrors,
-    Math.max(naive.totalErrors, resilient.totalErrors, 1),
-    (v) => String(v)
-  );
-  barRow(
-    resultsEl,
-    "Recovery actions (retries + circuit blocks)",
-    0,
-    resilient.totalRetries + resilient.totalCircuitBlocks,
-    Math.max(resilient.totalRetries + resilient.totalCircuitBlocks, 1),
-    (v) => String(v)
-  );
+  document.getElementById(`${mode}-successRate`).textContent = successRate === null ? "—" : `${successRate}%`;
+  document.getElementById(`${mode}-interventions`).textContent = t.tasks ? String(interventions) : "—";
+  document.getElementById(`${mode}-inputTokens`).textContent = t.tasks ? String(t.inputTokens) : "—";
+  document.getElementById(`${mode}-synthesisTokens`).textContent = t.tasks ? String(t.synthesisTokens) : "—";
+}
 
-  const table = document.createElement("table");
-  table.className = "summary";
-  const rows = [
-    ["Runs", naive.totalRuns, resilient.totalRuns],
-    ["Successful runs", naive.successCount, resilient.successCount],
-    ["Avg combined tokens (pre-compression)", naive.avgCombinedTokens, resilient.avgCombinedTokens],
-    ["Runs compressed", "-", `${resilient.compressionAppliedCount}/${resilient.totalRuns}`],
-  ];
-  table.innerHTML =
-    "<thead><tr><th>Metric</th><th>Naive</th><th>Resilient</th></tr></thead>";
-  const tbody = document.createElement("tbody");
-  for (const [label, a, b] of rows) {
-    const tr = document.createElement("tr");
-    const tdLabel = document.createElement("td");
-    tdLabel.textContent = label;
-    const tdA = document.createElement("td");
-    tdA.className = "num";
-    tdA.textContent = String(a);
-    const tdB = document.createElement("td");
-    tdB.className = "num";
-    tdB.textContent = String(b);
-    tr.append(tdLabel, tdA, tdB);
-    tbody.appendChild(tr);
-  }
-  table.appendChild(tbody);
-  resultsEl.appendChild(table);
+function setButtonsDisabled(disabled) {
+  naiveBtn.disabled = disabled;
+  resilientBtn.disabled = disabled;
+  resetBtn.disabled = disabled;
+}
 
-  if (resilient.circuitSnapshot) {
-    const heading = document.createElement("div");
-    heading.className = "metric-label";
-    heading.style.marginTop = "16px";
-    heading.textContent = "Circuit breaker state (resilient run, end of batch)";
-    resultsEl.appendChild(heading);
+async function runBatch(mode) {
+  if (consoleEl.querySelector(".placeholder")) clearEl(consoleEl);
 
-    const chips = document.createElement("div");
-    chips.className = "chips";
-    for (const snap of Object.values(resilient.circuitSnapshot)) {
-      const chip = document.createElement("span");
-      const healthy = snap.state === "healthy";
-      chip.className = `chip ${healthy ? "good" : "critical"}`;
-      const dot = document.createElement("span");
-      dot.className = "dot";
-      chip.appendChild(dot);
-      const label = document.createElement("span");
-      label.textContent = `${snap.agent}: ${healthy ? "healthy" : "open"}`;
-      chip.appendChild(label);
-      chips.appendChild(chip);
+  setButtonsDisabled(true);
+  const orchestrator = mode === "naive" ? state.naiveOrchestrator : state.resilientOrchestrator;
+  const taskCount = Math.min(Math.max(Number(taskCountInput.value) || 6, 3), 15);
+  const label = mode === "naive" ? "NAIVE (anti-pattern)" : "RESILIENT (recommended)";
+
+  appendLog({ level: "info", message: `=== ${label}: starting ${taskCount} tasks ===` }, mode, true);
+
+  for (let i = 1; i <= taskCount; i++) {
+    appendLog({ level: "info", message: `[Processing task-${i}]` }, mode);
+
+    const result = mode === "naive" ? await orchestrator.runNaive() : await orchestrator.runResilient();
+
+    const t = state.totals[mode];
+    t.tasks += 1;
+    if (result.success) t.successes += 1;
+    t.retries += result.retries || 0;
+    t.circuitBlocks += result.circuitBlocks || 0;
+    t.escalations += result.escalations || 0;
+    t.inputTokens += result.combinedTokens || 0;
+    t.synthesisTokens += result.tokensAtSynthesis || 0;
+
+    if (result.success) {
+      appendLog({ level: "info", message: `SUCCESS: task-${i} completed (${result.combinedTokens} tok -> ${result.tokensAtSynthesis} tok at synthesis)` }, mode);
+    } else {
+      const reason = mode === "naive" ? "no recovery path available" : "coordinator exhausted recovery options";
+      appendLog({ level: "error", message: `FAILED: task-${i} did not complete (${reason})` }, mode);
     }
-    resultsEl.appendChild(chips);
+
+    renderCards(mode);
+    await wait(PACE_MS);
   }
+
+  appendLog({ level: "info", message: "Workflow completed." }, mode, true);
+  setButtonsDisabled(false);
 }
 
-async function run() {
-  runBtn.disabled = true;
+function resetAll() {
   clearEl(consoleEl);
-  clearEl(resultsEl);
   const placeholder = document.createElement("div");
   placeholder.className = "placeholder";
-  placeholder.textContent = "Running...";
-  resultsEl.appendChild(placeholder);
+  placeholder.textContent = "Pick a path above to start the simulation.";
+  consoleEl.appendChild(placeholder);
 
-  const runs = Math.min(Math.max(Number(runsInput.value) || 12, 3), 40);
-  const failureRate = Math.min(Math.max(Number(failInput.value) || 0.18, 0), 0.9);
-
-  try {
-    const comparison = await runComparison({
-      runs,
-      orchestratorOptions: { failureRate },
-      onLog: appendLog,
-    });
-    renderResults(comparison);
-  } finally {
-    runBtn.disabled = false;
-  }
+  state.totals = { naive: freshTotals(), resilient: freshTotals() };
+  renderCards("naive");
+  renderCards("resilient");
+  makeOrchestrators();
+  setButtonsDisabled(false);
 }
 
-runBtn.addEventListener("click", run);
+naiveBtn.addEventListener("click", () => runBatch("naive"));
+resilientBtn.addEventListener("click", () => runBatch("resilient"));
+resetBtn.addEventListener("click", resetAll);
+
+resetAll();

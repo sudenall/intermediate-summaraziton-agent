@@ -75,6 +75,7 @@ export class Orchestrator {
         metrics.errors += 1;
 
         if (err instanceof FatalError) {
+          metrics.escalations += 1;
           this.log("error", `${role} FATAL: ${err.message} -> escalating to coordinator, no retry`, { agent: role });
           throw err;
         }
@@ -108,7 +109,7 @@ export class Orchestrator {
   }
 
   async runNaive() {
-    const metrics = { errors: 0, retries: 0, circuitBlocks: 0 };
+    const metrics = { errors: 0, retries: 0, circuitBlocks: 0, escalations: 0 };
     this.log("info", "=== naive run start ===");
     try {
       const [search, retrieval] = await Promise.all([
@@ -153,7 +154,7 @@ export class Orchestrator {
   }
 
   async runResilient() {
-    const metrics = { errors: 0, retries: 0, circuitBlocks: 0 };
+    const metrics = { errors: 0, retries: 0, circuitBlocks: 0, escalations: 0 };
     this.log("info", "=== resilient run start ===");
 
     // search and retrieval are independent sources; losing one degrades
